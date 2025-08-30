@@ -25,17 +25,49 @@ local originalGravity = workspace.Gravity
 local basePosition = nil
 local baseMarker = nil
 
+-- Переменные для кнопки меню
+local menuVisible = true
+local isDraggingMenuButton = false
+local dragStartPosition = nil
+local menuButtonStartPosition = nil
+
 -- Создание GUI
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "DragMenu"
 ScreenGui.Parent = player.PlayerGui
 ScreenGui.ResetOnSpawn = false
 
+-- Круглая кнопка меню
+local MenuButton = Instance.new("TextButton")
+MenuButton.Name = "MenuButton"
+MenuButton.Size = UDim2.new(0, 60, 0, 60)
+MenuButton.Position = UDim2.new(0, 10, 0.5, -30)
+MenuButton.AnchorPoint = Vector2.new(0, 0.5)
+MenuButton.BackgroundColor3 = Color3.fromRGB(128, 0, 128) -- Фиолетовый цвет
+MenuButton.Text = "Menu"
+MenuButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+MenuButton.Font = Enum.Font.GothamBold
+MenuButton.TextSize = 14
+MenuButton.AutoButtonColor = false
+MenuButton.ZIndex = 10
+MenuButton.Parent = ScreenGui
+
+-- Скругление кнопки (делаем круглой)
+local MenuButtonCorner = Instance.new("UICorner")
+MenuButtonCorner.CornerRadius = UDim.new(1, 0) -- Полностью круглая
+MenuButtonCorner.Parent = MenuButton
+
+-- Тень кнопки
+local MenuButtonStroke = Instance.new("UIStroke")
+MenuButtonStroke.Color = Color3.fromRGB(80, 0, 80)
+MenuButtonStroke.Thickness = 3
+MenuButtonStroke.Parent = MenuButton
+
 -- Основной фрейм меню
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 220, 0, 250) -- Увеличиваем высоту для новых кнопок
-MainFrame.Position = UDim2.new(0, 50, 0, 50)
+MainFrame.Size = UDim2.new(0, 220, 0, 250)
+MainFrame.Position = UDim2.new(0, 80, 0, 50) -- Сдвигаем вправо от кнопки
 MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
@@ -78,7 +110,7 @@ Divider.Parent = MainFrame
 -- Контейнер для кнопок
 local ButtonsContainer = Instance.new("Frame")
 ButtonsContainer.Name = "ButtonsContainer"
-ButtonsContainer.Size = UDim2.new(1, -20, 0, 180) -- Увеличиваем высоту
+ButtonsContainer.Size = UDim2.new(1, -20, 0, 180)
 ButtonsContainer.Position = UDim2.new(0, 10, 0, 60)
 ButtonsContainer.BackgroundTransparency = 1
 ButtonsContainer.Parent = MainFrame
@@ -116,6 +148,89 @@ local TpForwardButton = createButton("TpForwardButton", "➡️ TP Forward (+5 s
 local SpeedButton = createButton("SpeedButton", "🚀 Speed: OFF", 80)
 local SetBaseButton = createButton("SetBaseButton", "🏠 Set Base", 120)
 local FlyToBaseButton = createButton("FlyToBaseButton", "✈️ Fly to Base", 160)
+
+-- Функция для перетаскивания кнопки меню
+local function setupMenuButtonDrag()
+    MenuButton.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            isDraggingMenuButton = true
+            dragStartPosition = Vector2.new(input.Position.X, input.Position.Y)
+            menuButtonStartPosition = MenuButton.Position
+        end
+    end)
+    
+    MenuButton.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            isDraggingMenuButton = false
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if isDraggingMenuButton and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local delta = Vector2.new(input.Position.X, input.Position.Y) - dragStartPosition
+            MenuButton.Position = UDim2.new(
+                menuButtonStartPosition.X.Scale,
+                menuButtonStartPosition.X.Offset + delta.X,
+                menuButtonStartPosition.Y.Scale,
+                menuButtonStartPosition.Y.Offset + delta.Y
+            )
+        end
+    end)
+end
+
+-- Функция для показа/скрытия меню
+local function toggleMenu()
+    menuVisible = not menuVisible
+    
+    if menuVisible then
+        -- Показываем меню с анимацией
+        MainFrame.Visible = true
+        TweenService:Create(MainFrame, TweenInfo.new(0.3), {
+            Position = UDim2.new(0, MenuButton.AbsolutePosition.X + MenuButton.AbsoluteSize.X + 10, 0, MenuButton.AbsolutePosition.Y)
+        }):Play()
+        MenuButton.Text = "Menu"
+    else
+        -- Скрываем меню с анимацией
+        TweenService:Create(MainFrame, TweenInfo.new(0.3), {
+            Position = UDim2.new(-1, 0, 0, MenuButton.AbsolutePosition.Y)
+        }):Play()
+        task.wait(0.3)
+        MainFrame.Visible = false
+        MenuButton.Text = "Menu"
+    end
+end
+
+-- Обработчик клика по кнопке меню
+MenuButton.MouseButton1Click:Connect(function()
+    if not isDraggingMenuButton then
+        toggleMenu()
+        
+        -- Анимация нажатия
+        TweenService:Create(MenuButton, TweenInfo.new(0.1), {
+            BackgroundColor3 = Color3.fromRGB(100, 0, 100)
+        }):Play()
+        task.wait(0.1)
+        TweenService:Create(MenuButton, TweenInfo.new(0.2), {
+            BackgroundColor3 = Color3.fromRGB(128, 0, 128)
+        }):Play()
+    end
+end)
+
+-- Анимация при наведении на кнопку меню
+MenuButton.MouseEnter:Connect(function()
+    TweenService:Create(MenuButton, TweenInfo.new(0.2), {
+        BackgroundColor3 = Color3.fromRGB(150, 0, 150)
+    }):Play()
+end)
+
+MenuButton.MouseLeave:Connect(function()
+    TweenService:Create(MenuButton, TweenInfo.new(0.2), {
+        BackgroundColor3 = Color3.fromRGB(128, 0, 128)
+    }):Play()
+end)
+
+-- Настраиваем перетаскивание кнопки меню
+setupMenuButtonDrag()
 
 -- Функция для создания маркера базы
 local function createBaseMarker(position)
