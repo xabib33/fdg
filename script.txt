@@ -33,17 +33,15 @@ local menuButtonStartPosition = nil
 
 -- Переменные для сохранения позиции меню
 local lastMenuPosition = UDim2.new(0, 80, 0, 50)
-local isMenuDragging = false
-local menuDragStart = nil
-local menuStartPosition = nil
 
 -- Создание GUI
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "DragMenu"
 ScreenGui.Parent = player.PlayerGui
 ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling -- Позволяет управлять z-index вручную
 
--- Круглая кнопка меню
+-- Круглая кнопка меню (ВЫСОКИЙ Z-INDEX чтобы была поверх всего)
 local MenuButton = Instance.new("TextButton")
 MenuButton.Name = "MenuButton"
 MenuButton.Size = UDim2.new(0, 60, 0, 60)
@@ -55,7 +53,7 @@ MenuButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 MenuButton.Font = Enum.Font.GothamBold
 MenuButton.TextSize = 14
 MenuButton.AutoButtonColor = false
-MenuButton.ZIndex = 10
+MenuButton.ZIndex = 1000 -- Очень высокий z-index чтобы быть поверх всего
 MenuButton.Parent = ScreenGui
 
 -- Скругление кнопки (делаем круглой)
@@ -77,7 +75,8 @@ MainFrame.Position = lastMenuPosition -- Используем сохраненн
 MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
-MainFrame.Draggable = false -- Отключаем стандартное перетаскивание
+MainFrame.Draggable = true -- Включаем стандартное перетаскивание
+MainFrame.ZIndex = 999 -- Высокий z-index, но ниже чем у кнопки
 MainFrame.Parent = ScreenGui
 
 -- Скругление углов
@@ -91,7 +90,7 @@ UIStroke.Color = Color3.fromRGB(20, 20, 30)
 UIStroke.Thickness = 3
 UIStroke.Parent = MainFrame
 
--- Заголовок меню (для перетаскивания)
+-- Заголовок меню
 local Title = Instance.new("TextLabel")
 Title.Name = "Title"
 Title.Size = UDim2.new(1, -20, 0, 35)
@@ -102,6 +101,7 @@ Title.TextColor3 = Color3.fromRGB(255, 105, 180)
 Title.Font = Enum.Font.GothamBold
 Title.TextSize = 18
 Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.ZIndex = 1000 -- Высокий z-index для заголовка
 Title.Parent = MainFrame
 
 -- Разделитель
@@ -111,6 +111,7 @@ Divider.Size = UDim2.new(1, -20, 0, 1)
 Divider.Position = UDim2.new(0, 10, 0, 50)
 Divider.BackgroundColor3 = Color3.fromRGB(80, 80, 100)
 Divider.BorderSizePixel = 0
+Divider.ZIndex = 1000
 Divider.Parent = MainFrame
 
 -- Контейнер для кнопок
@@ -119,41 +120,8 @@ ButtonsContainer.Name = "ButtonsContainer"
 ButtonsContainer.Size = UDim2.new(1, -20, 0, 180)
 ButtonsContainer.Position = UDim2.new(0, 10, 0, 60)
 ButtonsContainer.BackgroundTransparency = 1
+ButtonsContainer.ZIndex = 1000
 ButtonsContainer.Parent = MainFrame
-
--- Функция для настройки перетаскивания меню
-local function setupMenuDrag()
-    Title.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            isMenuDragging = true
-            menuDragStart = Vector2.new(input.Position.X, input.Position.Y)
-            menuStartPosition = MainFrame.Position
-        end
-    end)
-    
-    Title.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            isMenuDragging = false
-            -- Сохраняем позицию при завершении перетаскивания
-            lastMenuPosition = MainFrame.Position
-        end
-    end)
-    
-    UserInputService.InputChanged:Connect(function(input)
-        if isMenuDragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            local delta = Vector2.new(input.Position.X, input.Position.Y) - menuDragStart
-            MainFrame.Position = UDim2.new(
-                menuStartPosition.X.Scale,
-                menuStartPosition.X.Offset + delta.X,
-                menuStartPosition.Y.Scale,
-                menuStartPosition.Y.Offset + delta.Y
-            )
-        end
-    end)
-end
-
--- Настраиваем перетаскивание меню
-setupMenuDrag()
 
 -- Стиль для кнопок
 local function createButton(name, text, positionY)
@@ -168,6 +136,7 @@ local function createButton(name, text, positionY)
     button.Font = Enum.Font.Gotham
     button.TextSize = 14
     button.AutoButtonColor = false
+    button.ZIndex = 1001 -- Высокий z-index для кнопок
     
     local buttonCorner = Instance.new("UICorner")
     buttonCorner.CornerRadius = UDim.new(0, 6)
@@ -196,12 +165,17 @@ local function setupMenuButtonDrag()
             isDraggingMenuButton = true
             dragStartPosition = Vector2.new(input.Position.X, input.Position.Y)
             menuButtonStartPosition = MenuButton.Position
+            
+            -- Поднимаем z-index кнопки еще выше при перетаскивании
+            MenuButton.ZIndex = 1001
         end
     end)
     
     MenuButton.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             isDraggingMenuButton = false
+            -- Возвращаем обычный z-index
+            MenuButton.ZIndex = 1000
         end
     end)
     
@@ -260,6 +234,13 @@ MenuButton.MouseButton1Click:Connect(function()
         TweenService:Create(MenuButton, TweenInfo.new(0.2), {
             BackgroundColor3 = Color3.fromRGB(128, 0, 128)
         }):Play()
+    end
+end)
+
+-- Сохраняем позицию меню при перетаскивании
+MainFrame.Changed:Connect(function(property)
+    if property == "Position" and menuVisible then
+        lastMenuPosition = MainFrame.Position
     end
 end)
 
@@ -361,7 +342,7 @@ local function toggleFly()
         -- Убираем гравитацию для плавного полёта
         workspace.Gravity = 0
         
-        -- Запоминаем текущую высоту и добавляем 100 studs
+        -- Запоминаем текучную высоту и добавляем 100 studs
         if humanoidRootPart then
             targetYPosition = humanoidRootPart.Position.Y + flyHeight
             TpUpButton.Text = "⬆️ Fly Mode: ON (" .. math.floor(targetYPosition) .. ")"
@@ -665,7 +646,7 @@ FlyToBaseButton.MouseButton1Click:Connect(function()
     -- Анимация нажатия
     TweenService:Create(FlyToBaseButton, TweenInfo.new(0.1), {
         BackgroundColor3 = Color3.fromRGB(65, 65, 85)
-    }):Play()
+        }):Play()
     task.wait(0.1)
     TweenService:Create(FlyToBaseButton, TweenInfo.new(0.2), {
         BackgroundColor3 = Color3.fromRGB(60, 150, 200)
